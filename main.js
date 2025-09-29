@@ -65,7 +65,7 @@ document.getElementById('edit-print').addEventListener('change', e => handleFile
 function exibirImagemModal(src) { imageModalImg.src = src; imageModal.style.display = 'flex'; }
 
 // ===== CRIAR CARD =====
-function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = [], tipo = 'chamado' }) {
+function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = [], tipo = 'chamado', coluna }) {
     const card = document.createElement('div');
     card.className = 'card ' + tipo;
     card.id = (tipo === 'chamado' ? 'chamado-' : 'tarefa-') + numero;
@@ -110,10 +110,18 @@ function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = 
     actions.querySelector('.done-btn').onclick = () => {
         if (card.dataset.tipo === 'chamado') {
             const concluido = document.querySelector('.column[data-type="concluido"]');
-            if (concluido) concluido.appendChild(card);
+            if (concluido) {
+                concluido.appendChild(card);
+                card.querySelector('.coment-input-area').style.display = 'none';
+                card.querySelector('.coment-preview-container').style.display = 'none';
+            }
         } else {
             const realizado = document.querySelector('.column[data-type="tarefas-realizadas"]');
-            if (realizado) realizado.appendChild(card);
+            if (realizado) {
+                realizado.appendChild(card);
+                card.querySelector('.coment-input-area').style.display = 'none';
+                card.querySelector('.coment-preview-container').style.display = 'none';
+            }
         }
         salvarEAtualizar();
     };
@@ -155,13 +163,11 @@ function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = 
     attachInput.multiple = true;
     attachInput.style.display = 'none';
 
-    // Novo container para pré-visualização de arquivos
     const previewContainer = document.createElement('div');
     previewContainer.className = 'coment-preview-container';
 
     btnAttach.onclick = () => attachInput.click();
 
-    // Evento para exibir pré-visualização ao selecionar arquivos
     attachInput.addEventListener('change', e => {
         previewContainer.innerHTML = '';
         Array.from(e.target.files).forEach(file => {
@@ -188,7 +194,6 @@ function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = 
         });
     });
 
-    // Lógica corrigida para o botão de envio
     btnComent.onclick = () => {
         if (inputComent.value.trim() === '' && attachInput.files.length === 0) {
             return;
@@ -221,16 +226,22 @@ function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = 
             reader.readAsDataURL(file);
         });
     };
-    
+
     inputArea.appendChild(inputComent);
     inputArea.appendChild(btnComent);
     inputArea.appendChild(btnAttach);
     inputArea.appendChild(attachInput);
-    
+
     comentariosDiv.appendChild(listaComent);
     comentariosDiv.appendChild(inputArea);
-    comentariosDiv.appendChild(previewContainer); // Adiciona o container de preview aqui
+    comentariosDiv.appendChild(previewContainer);
     card.appendChild(comentariosDiv);
+
+    // Esconde a área de input se o card já estiver em uma coluna de conclusão
+    if (coluna === 'concluido' || coluna === 'tarefas-realizadas') {
+        comentariosDiv.querySelector('.coment-input-area').style.display = 'none';
+        comentariosDiv.querySelector('.coment-preview-container').style.display = 'none';
+    }
 
     return card;
 }
@@ -243,8 +254,7 @@ function adicionarComentario(lista, c) {
         p.textContent = c.texto;
         div.appendChild(p);
     }
-    
-    // Adiciona imagens se existirem
+
     if (c.imagens && c.imagens.length > 0) {
         const gallery = document.createElement('div');
         gallery.className = 'gallery';
@@ -256,7 +266,7 @@ function adicionarComentario(lista, c) {
         });
         div.appendChild(gallery);
     }
-    
+
     const timestamp = document.createElement('span');
     timestamp.className = 'timestamp';
     timestamp.textContent = c.ts || new Date().toLocaleString();
@@ -277,7 +287,7 @@ document.getElementById('form-chamado').onsubmit = e => {
     const problema = document.getElementById('problema').value;
     const imgs = [...document.getElementById('preview-container').querySelectorAll('img')].map(i => i.src);
     const card = criarCard({ numero: proximoTicketNum++, cliente, empresa, problema, imagens: imgs, tipo: 'chamado' });
-    document.querySelector('.column[data-type="chamados"]').appendChild(card);
+    document.querySelector('.column[data-type="pendentes"]').appendChild(card);
     fecharModalChamado();
     salvarEAtualizar();
 };
@@ -367,7 +377,7 @@ function renderizarGraficos() {
         tarefasChart.destroy();
     }
 
-    const chamados = document.querySelectorAll('.column[data-type="chamados"] .card.chamado');
+    const chamados = document.querySelectorAll('.column[data-type="pendentes"] .card.chamado');
     const emAndamento = document.querySelectorAll('.column[data-type="em-andamento"] .card.chamado');
     const concluidos = document.querySelectorAll('.column[data-type="concluido"] .card.chamado');
 
@@ -375,7 +385,7 @@ function renderizarGraficos() {
     chamadosChart = new Chart(ctxChamados, {
         type: 'bar',
         data: {
-            labels: ['Novos', 'Em Andamento', 'Concluídos'],
+            labels: ['Pendentes', 'Em Andamento', 'Concluídos'],
             datasets: [{
                 label: 'Número de Chamados',
                 data: [
@@ -464,7 +474,7 @@ function renderizarGraficos() {
 
 // ===== INICIALIZAÇÃO =====
 function init() {
-    const colNames = [{ name: 'Chamados', type: 'chamados' }, { name: 'Em andamento', type: 'em-andamento' }, { name: 'Concluído', type: 'concluido' }, { name: 'Tarefas pendentes', type: 'tarefas' }, { name: 'Tarefas realizadas', type: 'tarefas-realizadas' }];
+    const colNames = [{ name: 'Pendentes', type: 'pendentes' }, { name: 'Em andamento', type: 'em-andamento' }, { name: 'Concluído', type: 'concluido' }, { name: 'Tarefas pendentes', type: 'tarefas' }, { name: 'Tarefas realizadas', type: 'tarefas-realizadas' }];
     colNames.forEach(c => {
         if (!document.querySelector(`.column[data-type="${c.type}"]`)) {
             const div = document.createElement('div');
@@ -479,10 +489,24 @@ function init() {
                 div.classList.remove('drag-over');
                 const id = e.dataTransfer.getData('text/plain');
                 const card = document.getElementById(id);
-                if ((card.dataset.tipo === 'chamado' && (c.type === 'tarefas' || c.type === 'tarefas-realizadas')) || (card.dataset.tipo.includes('tarefa') && (c.type === 'chamados' || c.type === 'em-andamento' || c.type === 'concluido'))) {
+                if ((card.dataset.tipo === 'chamado' && (c.type === 'tarefas' || c.type === 'tarefas-realizadas')) || (card.dataset.tipo.includes('tarefa') && (c.type === 'pendentes' || c.type === 'em-andamento' || c.type === 'concluido'))) {
                     return;
                 }
+                
                 div.appendChild(card);
+                
+                const inputArea = card.querySelector('.coment-input-area');
+                const previewContainer = card.querySelector('.coment-preview-container');
+
+                // Mostra/esconde os campos de input de comentários
+                if (c.type === 'concluido' || c.type === 'tarefas-realizadas') {
+                    if(inputArea) inputArea.style.display = 'none';
+                    if(previewContainer) previewContainer.style.display = 'none';
+                } else {
+                    if(inputArea) inputArea.style.display = 'flex';
+                    if(previewContainer) previewContainer.style.display = 'flex';
+                }
+                
                 salvarEAtualizar();
             });
         }
@@ -490,12 +514,12 @@ function init() {
 
     if (boardState) {
         boardState.chamados.forEach(ch => {
-            const coluna = document.querySelector(`.column[data-type="${ch.coluna || 'chamados'}"]`);
-            if (coluna) coluna.appendChild(criarCard({ ...ch, tipo: 'chamado' }));
+            const coluna = document.querySelector(`.column[data-type="${ch.coluna || 'pendentes'}"]`);
+            if (coluna) coluna.appendChild(criarCard({ ...ch, tipo: 'chamado', coluna: ch.coluna }));
         });
         boardState.tarefas.forEach(tr => {
             const coluna = document.querySelector(`.column[data-type="${tr.coluna || 'tarefas'}"]`);
-            if (coluna) coluna.appendChild(criarCard({ ...tr, tipo: tr.tipo || 'tarefa-pendente' }));
+            if (coluna) coluna.appendChild(criarCard({ ...tr, tipo: tr.tipo || 'tarefa-pendente', coluna: tr.coluna }));
         });
     }
     renderizarGraficos();
