@@ -269,4 +269,4 @@ function initDragImage(el) {
 }
 
 // ===== INICIALIZAÇÃO =====
-restaurarBoard();
+restaurarBoard(); 
