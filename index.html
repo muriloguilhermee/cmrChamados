@@ -19,25 +19,35 @@
     </div>
   </div>
   <div class="top-controls">
-    <input type="text" id="busca" class="search" placeholder="Buscar..." oninput="filtrarChamados()">
-    <button class="btn btn-primary" onclick="abrirModal()">+ Novo Chamado</button>
+    <input type="text" id="busca" class="search" placeholder="Buscar..." oninput="filtrarCards()">
+    <button class="btn btn-primary" onclick="abrirModalChamado()">+ Novo Chamado</button>
+    <button class="btn btn-secondary" onclick="abrirModalTarefa()">+ Nova Tarefa</button>
   </div>
 </header>
 
 <main class="main-container">
-    <div class="layout">
-      <section class="board" id="kanban"></section>
-      <section class="chart-container">
-        <h2>Visão Geral dos Chamados</h2>
+  <div class="layout">
+    <section class="board" id="kanban"></section>
+
+    <section class="charts-section">
+      <div class="chart-container">
+        <h2>Chamados</h2>
         <div class="chart-wrapper">
-            <canvas id="chamadosChart"></canvas>
+          <canvas id="chamadosChart"></canvas>
         </div>
-      </section>
-    </div>
+      </div>
+
+      <div class="chart-container">
+        <h2>Tarefas</h2>
+        <div class="chart-wrapper">
+          <canvas id="tarefasChart"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
 </main>
 
-
-<div id="modal-form" class="modal">
+<div id="modal-chamado" class="modal">
   <div class="modal-content">
     <h2>Novo Chamado</h2>
     <form id="form-chamado">
@@ -48,8 +58,25 @@
       <label for="print" class="btn btn-secondary">Selecionar Prints</label>
       <div id="preview-container" class="print-preview"></div>
       <div class="btn-row">
+  <button class="btn btn-primary" type="submit">Adicionar</button>
+  <button type="button" class="btn btn-secondary" onclick="fecharModalChamado()">Cancelar</button>
+</div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-tarefa" class="modal">
+  <div class="modal-content">
+    <h2>Nova Tarefa</h2>
+    <form id="form-tarefa">
+      <input id="tarefa-titulo" type="text" placeholder="Título da Tarefa" required>
+      <textarea id="tarefa-descricao" placeholder="Descrição" required></textarea>
+      <input type="file" id="tarefa-print" accept="image/*" multiple style="display:none;">
+      <label for="tarefa-print" class="btn btn-secondary">Selecionar Prints</label>
+      <div id="tarefa-preview-container" class="print-preview"></div>
+      <div class="btn-row">
         <button class="btn btn-primary" type="submit">Adicionar</button>
-        <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalTarefa()">Cancelar</button>
       </div>
     </form>
   </div>
@@ -57,14 +84,14 @@
 
 <div id="modal-edit" class="modal">
   <div class="modal-content">
-    <h2>Editar Chamado</h2>
+    <h2>Editar Card</h2>
     <form id="form-edit">
       <input type="hidden" id="edit-card-id">
-      <input id="edit-cliente" type="text" placeholder="Nome do Cliente" required>
-      <input id="edit-empresa" type="text" placeholder="Nome da Empresa" required>
-      <textarea id="edit-problema" placeholder="Problema" required></textarea>
+      <input id="edit-cliente" type="text" placeholder="Nome do Cliente">
+      <input id="edit-empresa" type="text" placeholder="Nome da Empresa">
+      <textarea id="edit-problema" placeholder="Problema / Descrição"></textarea>
       <input type="file" id="edit-print" accept="image/*" multiple style="display:none;">
-      <label for="edit-print" class="btn btn-secondary">Adicionar Novos Prints</label>
+      <label for="edit-print" class="btn btn-secondary">Selecionar Prints</label>
       <div id="edit-preview-container" class="print-preview"></div>
       <div class="btn-row">
         <button class="btn btn-primary" type="submit">Salvar</button>
