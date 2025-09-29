@@ -297,7 +297,7 @@ document.getElementById('form-tarefa').onsubmit = e => {
     const titulo = document.getElementById('tarefa-titulo').value;
     const desc = document.getElementById('tarefa-descricao').value;
     const imgs = [...document.getElementById('tarefa-preview-container').querySelectorAll('img')].map(i => i.src);
-    const card = criarCard({ numero: proximoIdTarefa++, cliente: titulo, empresa: '', problema: desc, imagens: imgs, tipo: 'tarefa-pendente' });
+    const card = criarCard({ numero: proximoIdTarefa++, cliente: titulo, empresa: '', problema: desc, imagens: imgs, tipo: 'tarefa' });
     document.querySelector('.column[data-type="tarefas"]').appendChild(card);
     fecharModalTarefa();
     salvarEAtualizar();
@@ -433,8 +433,8 @@ function renderizarGraficos() {
         }
     });
 
-    const tarefasPendentes = document.querySelectorAll('.column[data-type="tarefas"] .card.tarefa-pendente');
-    const tarefasRealizadas = document.querySelectorAll('.column[data-type="tarefas-realizadas"] .card.tarefa-pendente');
+    const tarefasPendentes = document.querySelectorAll('.column[data-type="tarefas"] .card.tarefa');
+    const tarefasRealizadas = document.querySelectorAll('.column[data-type="tarefas-realizadas"] .card.tarefa');
 
     const ctxTarefas = document.getElementById('tarefasChart').getContext('2d');
     tarefasChart = new Chart(ctxTarefas, {
@@ -489,7 +489,7 @@ function init() {
                 div.classList.remove('drag-over');
                 const id = e.dataTransfer.getData('text/plain');
                 const card = document.getElementById(id);
-                if ((card.dataset.tipo === 'chamado' && (c.type === 'tarefas' || c.type === 'tarefas-realizadas')) || (card.dataset.tipo.includes('tarefa') && (c.type === 'pendentes' || c.type === 'em-andamento' || c.type === 'concluido'))) {
+                if ((card.dataset.tipo === 'chamado' && (c.type === 'tarefas' || c.type === 'tarefas-realizadas')) || (card.dataset.tipo === 'tarefa' && (c.type === 'pendentes' || c.type === 'em-andamento' || c.type === 'concluido'))) {
                     return;
                 }
                 
@@ -519,7 +519,7 @@ function init() {
         });
         boardState.tarefas.forEach(tr => {
             const coluna = document.querySelector(`.column[data-type="${tr.coluna || 'tarefas'}"]`);
-            if (coluna) coluna.appendChild(criarCard({ ...tr, tipo: tr.tipo || 'tarefa-pendente', coluna: tr.coluna }));
+            if (coluna) coluna.appendChild(criarCard({ ...tr, tipo: tr.tipo || 'tarefa', coluna: tr.coluna }));
         });
     }
     renderizarGraficos();
