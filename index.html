@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Evacloudd - Kanban Avançado</title>
-
+<title>Evacloudd - Kanban Avançado com Gráfico</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="style.css">
@@ -21,44 +20,58 @@
   </div>
   <div class="top-controls">
     <input type="text" id="busca" class="search" placeholder="Buscar..." oninput="filtrarChamados()">
-    <button class="btn btn-primary" onclick="document.getElementById('cliente').focus()">+ Novo Chamado</button>
+    <button class="btn btn-primary" onclick="abrirModal()">+ Novo Chamado</button>
   </div>
 </header>
 
-<div class="layout">
-  <aside class="left">
+<main class="main-container">
+    <div class="layout">
+      <section class="board" id="kanban"></section>
+      <section class="chart-container">
+        <h2>Visão Geral dos Chamados</h2>
+        <div class="chart-wrapper">
+            <canvas id="chamadosChart"></canvas>
+        </div>
+      </section>
+    </div>
+</main>
+
+
+<div id="modal-form" class="modal">
+  <div class="modal-content">
+    <h2>Novo Chamado</h2>
     <form id="form-chamado">
-      <label for="cliente">Nome do Cliente</label>
-      <input id="cliente" type="text" required>
-      <label for="empresa">Nome da Empresa</label>
-      <input id="empresa" type="text" required>
-      <label for="problema">Problema</label>
-      <textarea id="problema" required></textarea>
-
-      <input type="file" id="print" accept="image/*" multiple>
-      <label for="print" class="file-label">Selecionar Prints</label>
+      <input id="cliente" type="text" placeholder="Nome do Cliente" required>
+      <input id="empresa" type="text" placeholder="Nome da Empresa" required>
+      <textarea id="problema" placeholder="Problema" required></textarea>
+      <input type="file" id="print" accept="image/*" multiple style="display:none;">
+      <label for="print" class="btn btn-secondary">Selecionar Prints</label>
       <div id="preview-container" class="print-preview"></div>
-
-      <div style="display:flex;gap:10px;margin-top:8px;">
-        <button class="btn btn-primary" type="submit">Adicionar Chamado</button>
-        <button type="button" class="btn btn-secondary" onclick="limparFormulario()">Limpar</button>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Adicionar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
       </div>
     </form>
+  </div>
+</div>
 
-    <div style="margin-top:18px;">
-      <div style="color:var(--muted);font-size:13px;margin-bottom:8px">Gerenciar Etapas</div>
-      <div class="add-column-area">
-        <input id="nova-etapa" class="input-col" placeholder="Nova etapa">
-        <button class="btn btn-primary" onclick="adicionarEtapa()">Adicionar</button>
+<div id="modal-edit" class="modal">
+  <div class="modal-content">
+    <h2>Editar Chamado</h2>
+    <form id="form-edit">
+      <input type="hidden" id="edit-card-id">
+      <input id="edit-cliente" type="text" placeholder="Nome do Cliente" required>
+      <input id="edit-empresa" type="text" placeholder="Nome da Empresa" required>
+      <textarea id="edit-problema" placeholder="Problema" required></textarea>
+      <input type="file" id="edit-print" accept="image/*" multiple style="display:none;">
+      <label for="edit-print" class="btn btn-secondary">Adicionar Novos Prints</label>
+      <div id="edit-preview-container" class="print-preview"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">Salvar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalEdicao()">Cancelar</button>
       </div>
-    </div>
-
-    <div id="stats">
-      <canvas id="chart"></canvas>
-    </div>
-  </aside>
-
-  <section class="board" id="kanban"></section>
+    </form>
+  </div>
 </div>
 
 <div class="image-modal" id="image-modal" onclick="this.style.display='none'">
@@ -66,5 +79,5 @@
 </div>
 
 <script src="main.js"></script>
-
- 
+</body>
+</html>

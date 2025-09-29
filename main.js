@@ -1,278 +1,426 @@
-// ===== VARIÁVEIS =====
-let idChamado = 0, boardState = JSON.parse(localStorage.getItem('kanbanData')) || null;
-const boardEl = document.getElementById('kanban'), previewContainer = document.getElementById('preview-container');
-let chart;
+// ===== VARIÁVEIS GLOBAIS =====
+let idChamado = 0;
+let boardState = JSON.parse(localStorage.getItem('kanbanData')) || null;
+let proximoTicketNum = JSON.parse(localStorage.getItem('proximoTicketNum')) || 1; // --- NOVO: Contador de tickets ---
+const boardEl = document.getElementById('kanban');
+let chamadosChart = null;
+
+// Modais
+const modalForm = document.getElementById('modal-form');
+const modalEdit = document.getElementById('modal-edit');
 const imageModal = document.getElementById('image-modal');
 const imageModalImg = document.getElementById('image-modal-img');
 
-// ===== FORM PREVIEW =====
-document.getElementById('print').addEventListener('change', () => {
-  previewContainer.innerHTML = '';
-  Array.from(document.getElementById('print').files).forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const thumb = document.createElement('div'); thumb.className = 'print-thumb'; thumb.draggable = true;
-      const img = document.createElement('img'); img.src = e.target.result;
-      img.onclick = () => { imageModalImg.src = e.target.result; imageModal.style.display = 'flex'; };
-      const btn = document.createElement('button'); btn.textContent = '✕';
-      btn.onclick = () => thumb.remove();
-      thumb.appendChild(img); thumb.appendChild(btn);
-      previewContainer.appendChild(thumb);
-      initDragImage(thumb);
-    }
-    reader.readAsDataURL(file);
-  });
+// ===== FUNÇÃO PARA SALVAR ESTADO E ATUALIZAR GRÁFICO =====
+function salvarEAtualizar() {
+    salvarBoard();
+    atualizarGrafico();
+}
+
+// ===== FUNÇÕES DE MODAL =====
+function abrirModal() { modalForm.style.display = "flex"; }
+function fecharModal() {
+  modalForm.style.display = "none";
+  document.getElementById('form-chamado').reset();
+  document.getElementById('preview-container').innerHTML = "";
+}
+function abrirModalEdicao(card) {
+    const cardId = card.id;
+    const cliente = card.querySelector('.cliente').textContent;
+    const empresa = card.querySelector('.empresa').textContent;
+    const problema = card.querySelector('.problema').textContent;
+    const imagens = [...card.querySelectorAll('.gallery img')].map(img => img.src);
+    document.getElementById('edit-card-id').value = cardId;
+    document.getElementById('edit-cliente').value = cliente;
+    document.getElementById('edit-empresa').value = empresa;
+    document.getElementById('edit-problema').value = problema;
+    const preview = document.getElementById('edit-preview-container');
+    preview.innerHTML = '';
+    imagens.forEach(src => {
+        const thumb = criarThumbPreview(src);
+        preview.appendChild(thumb);
+    });
+    modalEdit.style.display = "flex";
+}
+function fecharModalEdicao() {
+    modalEdit.style.display = "none";
+    document.getElementById('form-edit').reset();
+    document.getElementById('edit-preview-container').innerHTML = "";
+}
+
+// ===== MANIPULAÇÃO DE IMAGENS =====
+function criarThumbPreview(src) {
+    const thumb = document.createElement('div');
+    thumb.className = 'print-thumb';
+    const img = document.createElement('img');
+    img.src = src;
+    img.onclick = () => exibirImagemModal(src);
+    const btn = document.createElement('button');
+    btn.innerHTML = '&times;';
+    btn.onclick = () => thumb.remove();
+    thumb.appendChild(img);
+    thumb.appendChild(btn);
+    return thumb;
+}
+
+function handleFileInput(fileInput, previewContainer) {
+    previewContainer.innerHTML = ''; 
+    Array.from(fileInput.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const thumb = criarThumbPreview(e.target.result);
+            previewContainer.appendChild(thumb);
+        }
+        reader.readAsDataURL(file);
+    });
+}
+document.getElementById('print').addEventListener('change', (e) => handleFileInput(e.target, document.getElementById('preview-container')));
+document.getElementById('edit-print').addEventListener('change', (e) => {
+    const preview = document.getElementById('edit-preview-container');
+     Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = evt => {
+            const thumb = criarThumbPreview(evt.target.result);
+            preview.appendChild(thumb);
+        }
+        reader.readAsDataURL(file);
+    });
 });
 
-function limparFormulario() { 
-  document.getElementById('form-chamado').reset(); 
-  previewContainer.innerHTML = ''; 
+function exibirImagemModal(src) {
+    imageModalImg.src = src;
+    imageModal.style.display = 'flex';
 }
 
-// ===== CRIAR CARD =====
-function criarCard({ cliente, empresa, problema, imagens }) {
-  const card = document.createElement('div'); 
-  card.className = 'card'; 
-  card.draggable = true; 
-  card.id = 'chamado-' + (idChamado++);
-  
-  card.ondragstart = e => e.dataTransfer.setData('text/plain', card.id);
-
-  const cDiv = document.createElement('div'); cDiv.className = 'cliente'; cDiv.textContent = cliente;
-  const eDiv = document.createElement('div'); eDiv.className = 'empresa'; eDiv.textContent = empresa;
-  const pDiv = document.createElement('div'); pDiv.className = 'problema'; pDiv.textContent = problema;
-  card.appendChild(cDiv); card.appendChild(eDiv); card.appendChild(pDiv);
-
-  const gallery = document.createElement('div'); gallery.className = 'gallery';
-  (imagens || []).forEach(src => {
-    const thumb = document.createElement('div');
-    const img = document.createElement('img'); img.src = src;
-    img.onclick = () => { imageModalImg.src = src; imageModal.style.display = 'flex'; };
-    const btn = document.createElement('button'); btn.textContent = '✕'; btn.onclick = () => { thumb.remove(); salvarBoard(); };
-    thumb.appendChild(img); thumb.appendChild(btn);
-    gallery.appendChild(thumb);
-    initDragImage(thumb);
-  });
-  card.appendChild(gallery);
-
-  // Ações
-  const actions = document.createElement('div'); actions.className = 'actions';
-  const doneBtn = document.createElement('button'); doneBtn.textContent = 'Concluir'; doneBtn.className = 'done-btn';
-  doneBtn.onclick = () => {
-  const concl = Array.from(boardEl.querySelectorAll('.column'))
-                      .find(c => c.querySelector('h2')?.textContent.trim() === 'Concluído');
-  if (concl) {
-    concl.appendChild(card);
-    salvarBoard();
-  } else {
-    alert('Coluna "Concluído" não encontrada!');
-  }
-};
-
-  const delBtn = document.createElement('button'); delBtn.textContent = 'Excluir'; delBtn.className = 'delete-btn';
-  delBtn.onclick = () => { card.remove(); salvarBoard(); };
-  const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.className = 'edit-btn';
-  actions.appendChild(doneBtn); actions.appendChild(delBtn); actions.appendChild(editBtn);
-  card.appendChild(actions);
-
-  // Modal de edição
-  const modal = document.createElement('div'); 
-  modal.className = 'card-modal';
-  modal.innerHTML = `
-    <h3>Editar Chamado</h3>
-    <input class="modal-cliente" value="${cliente}">
-    <input class="modal-empresa" value="${empresa}">
-    <textarea class="modal-problema">${problema}</textarea>
-    <input type="file" class="modal-print" accept="image/*" multiple>
-    <div class="modal-preview"></div>
-    <button class="add-files-btn">Adicionar Arquivos</button>
-    <button class="save-modal">Salvar</button>
-    <button class="close-modal">Fechar</button>
-  `;
-  modal.querySelector('.close-modal').onclick = () => modal.style.display = 'none';
-
-  const modalPreview = modal.querySelector('.modal-preview');
-  const modalPrint = modal.querySelector('.modal-print');
-
-  // Carregar imagens já existentes do card na pré-visualização
-  card.querySelectorAll('.gallery img').forEach(img => {
-    const thumb = document.createElement('div');
-    const imgel = document.createElement('img'); imgel.src = img.src;
-    imgel.onclick = () => { imageModalImg.src = img.src; imageModal.style.display = 'flex'; };
-    const btn = document.createElement('button'); btn.textContent = '✕';
-    btn.onclick = () => { thumb.remove(); img.parentElement.remove(); salvarBoard(); };
-    thumb.appendChild(imgel); thumb.appendChild(btn);
-    modalPreview.appendChild(thumb);
-  });
-
-  // Botão adicionar arquivos no modal
-  modal.querySelector('.add-files-btn').onclick = () => modalPrint.click();
-
-  // Adicionar novas imagens selecionadas no modal
-  modalPrint.addEventListener('change', () => {
-    Array.from(modalPrint.files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        // Pré-visualização do modal
-        const thumb = document.createElement('div');
-        const img = document.createElement('img'); img.src = e.target.result;
-        img.onclick = () => { imageModalImg.src = e.target.result; imageModal.style.display = 'flex'; };
-        const btn = document.createElement('button'); btn.textContent = '✕';
-        btn.onclick = () => { thumb.remove(); cardThumb.remove(); salvarBoard(); };
-        thumb.appendChild(img); thumb.appendChild(btn);
-        modalPreview.appendChild(thumb);
-
-        // Adicionar na galeria do card
-        const cardThumb = document.createElement('div');
-        const cardImg = document.createElement('img'); cardImg.src = e.target.result;
-        cardImg.onclick = () => { imageModalImg.src = e.target.result; imageModal.style.display = 'flex'; };
-        const cardBtn = document.createElement('button'); cardBtn.textContent = '✕';
-        cardBtn.onclick = () => { cardThumb.remove(); salvarBoard(); };
-        cardThumb.appendChild(cardImg); cardThumb.appendChild(cardBtn);
-        card.querySelector('.gallery').appendChild(cardThumb);
-        initDragImage(cardThumb);
-
-        salvarBoard();
-      };
-      reader.readAsDataURL(file);
+// ===== MANIPULAÇÃO DE CARD =====
+function criarCard({ numero, cliente, empresa, problema, imagens, comentarios = [] }) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'chamado-' + (idChamado++);
+    card.draggable = true;
+    
+    card.addEventListener('dragstart', (e) => {
+        e.target.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', e.target.id);
     });
-  });
+    card.addEventListener('dragend', (e) => {
+        e.target.classList.remove('dragging');
+    });
 
-  modal.querySelector('.save-modal').onclick = () => {
-    card.querySelector('.cliente').textContent = modal.querySelector('.modal-cliente').value;
-    card.querySelector('.empresa').textContent = modal.querySelector('.modal-empresa').value;
-    card.querySelector('.problema').textContent = modal.querySelector('.modal-problema').value;
-    salvarBoard(); 
-    modal.style.display = 'none';
-  };
+    const ticketLabel = document.createElement('div');
+    ticketLabel.className = 'ticket-label';
+    ticketLabel.textContent = `Ticket #${numero}`; // --- MUDANÇA: Exibe o número do ticket ---
+    card.appendChild(ticketLabel);
 
-  editBtn.onclick = () => modal.style.display = 'block';
-  card.appendChild(modal);
+    // Adiciona o restante do conteúdo via append para garantir a ordem
+    const clienteDiv = document.createElement('div');
+    clienteDiv.className = 'cliente';
+    clienteDiv.textContent = cliente;
+    card.appendChild(clienteDiv);
 
-  return card;
+    const empresaDiv = document.createElement('div');
+    empresaDiv.className = 'empresa';
+    empresaDiv.textContent = empresa;
+    card.appendChild(empresaDiv);
+
+    const problemaDiv = document.createElement('div');
+    problemaDiv.className = 'problema';
+    problemaDiv.textContent = problema;
+    card.appendChild(problemaDiv);
+    
+    const gallery = document.createElement('div');
+    gallery.className = 'gallery';
+    (imagens || []).forEach(src => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.onclick = () => exibirImagemModal(src);
+        gallery.appendChild(img);
+    });
+    card.appendChild(gallery);
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `<button class="done-btn">Concluir</button><button class="edit-btn">Editar</button><button class="delete-btn">Excluir</button>`;
+    actions.querySelector('.done-btn').onclick = () => {
+        const colConcluido = [...boardEl.querySelectorAll('.column')].find(c => c.querySelector('h2').textContent === 'Concluído');
+        if (colConcluido) {
+            colConcluido.appendChild(card);
+            salvarEAtualizar();
+        }
+    };
+    actions.querySelector('.edit-btn').onclick = () => abrirModalEdicao(card);
+    actions.querySelector('.delete-btn').onclick = () => {
+        if(confirm('Tem certeza que deseja excluir este chamado?')){
+            card.remove();
+            salvarEAtualizar();
+        }
+    };
+    card.appendChild(actions);
+    const comentariosDiv = document.createElement('div');
+    comentariosDiv.className = 'comentarios';
+    
+    const commentTitle = document.createElement('h4');
+    commentTitle.className = 'comment-title';
+    commentTitle.textContent = 'Comentários';
+    comentariosDiv.appendChild(commentTitle);
+
+    const listaComent = document.createElement('div');
+    listaComent.className = 'lista-coment';
+    comentarios.forEach(comentData => adicionarComentario(listaComent, comentData));
+    const inputArea = document.createElement('div');
+    inputArea.className = 'coment-input-area';
+    const inputComent = document.createElement('input');
+    inputComent.type = 'text';
+    inputComent.placeholder = 'Escreva um comentário...';
+    inputComent.className = 'input-coment';
+    const comentFileId = `coment-print-${card.id}`;
+    const inputComentFile = document.createElement('input');
+    inputComentFile.type = 'file';
+    inputComentFile.id = comentFileId;
+    inputComentFile.style.display = 'none';
+    inputComentFile.accept = 'image/*';
+    const attachBtn = document.createElement('label');
+    attachBtn.htmlFor = comentFileId;
+    attachBtn.textContent = '📎';
+    attachBtn.className = 'btn-attach-coment';
+    const btnComent = document.createElement('button');
+    btnComent.textContent = 'Adicionar';
+    btnComent.className = 'btn-coment';
+    btnComent.onclick = () => {
+        const txt = inputComent.value.trim();
+        const file = inputComentFile.files[0];
+        const timestamp = new Date().toISOString();
+        if (!txt && !file) return;
+        const addCommentAction = (imageData) => {
+            adicionarComentario(listaComent, { text: txt, image: imageData, timestamp });
+            inputComent.value = '';
+            inputComentFile.value = '';
+            salvarBoard();
+        };
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = e => addCommentAction(e.target.result);
+            reader.readAsDataURL(file);
+        } else {
+            addCommentAction(null);
+        }
+    };
+    inputArea.appendChild(inputComent);
+    inputArea.appendChild(inputComentFile);
+    inputArea.appendChild(attachBtn);
+    inputArea.appendChild(btnComent);
+    comentariosDiv.appendChild(listaComent);
+    comentariosDiv.appendChild(inputArea);
+    card.appendChild(comentariosDiv);
+    return card;
 }
 
-// ===== COLUNAS FIXAS =====
-function adicionarColuna(nome) {
-  const coluna = document.createElement('div'); 
-  coluna.className = 'column';
-  coluna.innerHTML = `<h2>${nome}</h2>`; // sem botões de editar/excluir
-  coluna.ondragover = e => e.preventDefault();
-  coluna.ondrop = e => {
-    e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
-    const card = document.getElementById(id);
-    if (card) coluna.appendChild(card);
-    salvarBoard();
-  };
-  boardEl.appendChild(coluna); 
-  return coluna;
-}
-
-// ===== OUTRAS FUNÇÕES =====
-function adicionarEtapa() { 
-  const nome = document.getElementById('nova-etapa').value.trim(); 
-  if (!nome) return; 
-  adicionarColuna(nome); 
-  document.getElementById('nova-etapa').value = ''; 
-  salvarBoard(); 
-}
-
-function filtrarChamados() { 
-  const termo = document.getElementById('busca').value.toLowerCase(); 
-  document.querySelectorAll('.card').forEach(c => { 
-    c.style.display = (c.querySelector('.cliente').textContent.toLowerCase().includes(termo) || 
-                       c.querySelector('.empresa').textContent.toLowerCase().includes(termo)) ? 'block' : 'none'; 
-  }); 
-}
-
-// ===== GRÁFICO =====
-function atualizarChart() {
-  const etapas = [], valores = [];
-  boardEl.querySelectorAll('.column').forEach(c => { 
-    etapas.push(c.querySelector('h2').textContent); 
-    valores.push(c.querySelectorAll('.card').length); 
-  });
-  const total = valores.reduce((a, b) => a + b, 0);
-  const porcentagens = valores.map(v => total ? (v / total * 100).toFixed(1) : 0);
-  if(chart) chart.destroy();
-  const colors = ['#7c5cff','#00e0ff','#3de07a','#ff4d4d','#ffaa00','#ff66cc','#66ffcc'];
-  const ctx = document.getElementById('chart').getContext('2d');
-  chart = new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels:etapas.map((t,i)=>`${t} (${porcentagens[i]}%)`),
-      datasets:[{label:'Chamados',data:valores,backgroundColor:valores.map((_,i)=>colors[i%colors.length]),borderColor:'#fff',borderWidth:2,borderRadius:8}]
-    },
-    options:{
-      responsive:true,
-      plugins:{legend:{display:false},tooltip:{enabled:true}},
-      scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},
-      animation:{duration:800,easing:'easeOutQuart'}
+function adicionarComentario(lista, comentData) {
+    const c = document.createElement('div');
+    c.className = 'comentario';
+    const timestamp = document.createElement('span');
+    timestamp.className = 'timestamp';
+    timestamp.textContent = new Date(comentData.timestamp).toLocaleString('pt-BR');
+    c.appendChild(timestamp);
+    c.appendChild(document.createTextNode(comentData.text));
+    if (comentData.image) {
+        const img = document.createElement('img');
+        img.src = comentData.image;
+        img.onclick = () => exibirImagemModal(comentData.image);
+        c.appendChild(img);
     }
-  });
+    const btn = document.createElement('button');
+    btn.innerHTML = '&times;';
+    btn.onclick = () => { c.remove(); salvarBoard(); };
+    c.appendChild(btn);
+    lista.appendChild(c);
 }
 
-// ===== SALVAR / RESTAURAR =====
-function salvarBoard() {
-  const data = [];
-  boardEl.querySelectorAll('.column').forEach(col => {
-    const colData = { titulo: col.querySelector('h2').textContent, chamados: [] };
-    col.querySelectorAll('.card').forEach(c => {
-      const imgs = []; c.querySelectorAll('.gallery img').forEach(i=>imgs.push(i.src));
-      colData.chamados.push({ cliente: c.querySelector('.cliente').textContent, empresa: c.querySelector('.empresa').textContent, problema: c.querySelector('.problema').textContent, imagens: imgs });
+// ===== MANIPULAÇÃO DO BOARD =====
+function adicionarColuna(nome) {
+    const col = document.createElement('div');
+    col.className = 'column';
+    col.innerHTML = `<h2>${nome}</h2>`;
+
+    col.addEventListener('dragover', (e) => {
+        e.preventDefault(); 
+        e.currentTarget.classList.add('drag-over');
     });
-    data.push(colData);
-  });
-  localStorage.setItem('kanbanData',JSON.stringify(data));
-  atualizarChart();
+    col.addEventListener('dragleave', (e) => {
+        e.currentTarget.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        const cardId = e.dataTransfer.getData('text/plain');
+        const draggedCard = document.getElementById(cardId);
+        
+        if (draggedCard) {
+            e.currentTarget.appendChild(draggedCard);
+            salvarEAtualizar();
+        }
+    });
+
+    boardEl.appendChild(col);
+    return col;
+}
+
+function salvarBoard() {
+    const data = [];
+    boardEl.querySelectorAll('.column').forEach(col => {
+        const colData = { titulo: col.querySelector('h2').textContent, chamados: [] };
+        col.querySelectorAll('.card').forEach(c => {
+            const numeroTicket = parseInt(c.querySelector('.ticket-label').textContent.replace('Ticket #', '')); // --- NOVO: Salva o número do ticket ---
+            const coments = [...c.querySelectorAll('.comentario')].map(cm => {
+                const textNode = Array.from(cm.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
+                const timestampStr = cm.querySelector('.timestamp').textContent;
+                const [date, time] = timestampStr.split(' ');
+                const [day, month, year] = date.split('/');
+                const isoTimestamp = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T${time}`;
+                return {
+                    text: textNode ? textNode.nodeValue.trim() : '',
+                    image: cm.querySelector('img')?.src || null,
+                    timestamp: new Date(isoTimestamp).toISOString()
+                };
+            });
+            colData.chamados.push({
+                numero: numeroTicket,
+                cliente: c.querySelector('.cliente').textContent,
+                empresa: c.querySelector('.empresa').textContent,
+                problema: c.querySelector('.problema').textContent,
+                imagens: [...c.querySelectorAll('.gallery img')].map(i => i.src),
+                comentarios: coments
+            });
+        });
+        data.push(colData);
+    });
+    localStorage.setItem('kanbanData', JSON.stringify(data));
 }
 
 function restaurarBoard() {
-  boardEl.innerHTML = '';
-  if(!boardState){ adicionarColuna('Pendente'); adicionarColuna('Em Andamento'); adicionarColuna('Concluído'); return; }
-  boardState.forEach(col => {
-    const coluna = adicionarColuna(col.titulo);
-    col.chamados.forEach(ch => coluna.appendChild(criarCard(ch)));
-  });
-  atualizarChart();
-}
-
-// ===== FORM SUBMIT =====
-document.getElementById('form-chamado').onsubmit = function (e) {
-  e.preventDefault();
-  const cliente = document.getElementById('cliente').value;
-  const empresa = document.getElementById('empresa').value;
-  const problema = document.getElementById('problema').value;
-  const imgs = [];
-  previewContainer.querySelectorAll('img').forEach(img => imgs.push(img.src));
-  const card = criarCard({ cliente, empresa, problema, imagens: imgs });
-  const pendente = Array.from(boardEl.querySelectorAll('.column')).find(c => c.querySelector('h2').textContent === 'Pendente');
-  pendente.appendChild(card); salvarBoard(); limparFormulario();
-}
-
-// ===== ARRASTAR IMAGENS DENTRO DO CARD =====
-function initDragImage(el) {
-  let startEl = null;
-  el.addEventListener('dragstart', e => { startEl = e.currentTarget; e.dataTransfer.effectAllowed = 'move'; });
-  el.addEventListener('dragover', e => e.preventDefault());
-  el.addEventListener('drop', e => {
-    e.preventDefault();
-    if(startEl && startEl !== e.currentTarget){
-      const parent = e.currentTarget.parentElement;
-      parent.insertBefore(startEl,e.currentTarget.nextSibling);
-      salvarBoard();
+    boardEl.innerHTML = '';
+    idChamado = 0;
+    if (!boardState || boardState.length === 0) {
+        adicionarColuna('Pendente');
+        adicionarColuna('Em Andamento');
+        adicionarColuna('Concluído');
+        return;
     }
-  });
-  // Mobile touch
-  el.addEventListener('touchstart', e => { startEl = e.currentTarget; });
-  el.addEventListener('touchmove', e => { e.preventDefault(); });
-  el.addEventListener('touchend', e => {
-    const touch = e.changedTouches[0];
-    const elAt = document.elementFromPoint(touch.clientX,touch.clientY);
-    if(elAt && elAt.parentElement && elAt.parentElement.classList.contains('gallery') && startEl){ elAt.parentElement.insertBefore(startEl,elAt.nextSibling); salvarBoard(); }
-  });
+    boardState.forEach(col => {
+        const coluna = adicionarColuna(col.titulo);
+        col.chamados.forEach(ch => {
+            // Garante que cards antigos sem número recebam um
+            if (!ch.numero) {
+                ch.numero = proximoTicketNum;
+                proximoTicketNum++;
+                localStorage.setItem('proximoTicketNum', JSON.stringify(proximoTicketNum));
+            }
+            coluna.appendChild(criarCard(ch))
+        });
+    });
+}
+
+// ===== BUSCA E FILTRO =====
+function filtrarChamados() {
+    const termo = document.getElementById('busca').value.toLowerCase();
+    document.querySelectorAll('.card').forEach(c => {
+        const ticketNum = c.querySelector('.ticket-label')?.textContent.toLowerCase() || '';
+        const match = c.querySelector('.cliente').textContent.toLowerCase().includes(termo) ||
+                      c.querySelector('.empresa').textContent.toLowerCase().includes(termo) ||
+                      c.querySelector('.problema').textContent.toLowerCase().includes(termo) ||
+                      ticketNum.includes(termo);
+        c.style.display = match ? 'block' : 'none';
+    });
+}
+
+// ===== LÓGICA DO GRÁFICO =====
+function atualizarGrafico() {
+    const ctx = document.getElementById('chamadosChart').getContext('2d');
+    const labels = [];
+    const data = [];
+    document.querySelectorAll('.column').forEach(column => {
+        labels.push(column.querySelector('h2').textContent);
+        data.push(column.querySelectorAll('.card').length);
+    });
+
+    if (chamadosChart) {
+        chamadosChart.data.labels = labels;
+        chamadosChart.data.datasets[0].data = data;
+        chamadosChart.update();
+    } else {
+        chamadosChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Chamados',
+                    data: data,
+                    backgroundColor: ['#7c5cff', '#00e0ff', '#3de07a', '#ffab4d', '#ff4d4d'],
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: 'rgba(255, 255, 255, 0.85)',
+                            font: { family: 'Inter, sans-serif' }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+}
+
+// ===== HANDLERS DE FORMULÁRIO =====
+document.getElementById('form-chamado').onsubmit = function(e) {
+    e.preventDefault();
+    const cliente = document.getElementById('cliente').value;
+    const empresa = document.getElementById('empresa').value;
+    const problema = document.getElementById('problema').value;
+    const imagens = [...document.getElementById('preview-container').querySelectorAll('img')].map(img => img.src);
+    
+    // --- NOVO: Atribui o número do ticket e incrementa ---
+    const numeroDoTicket = proximoTicketNum;
+    const card = criarCard({ numero: numeroDoTicket, cliente, empresa, problema, imagens });
+    
+    const colPendente = [...boardEl.querySelectorAll('.column')].find(c => c.querySelector('h2').textContent === 'Pendente');
+    if (colPendente) colPendente.appendChild(card);
+
+    proximoTicketNum++;
+    localStorage.setItem('proximoTicketNum', JSON.stringify(proximoTicketNum));
+
+    salvarEAtualizar();
+    fecharModal();
+}
+
+document.getElementById('form-edit').onsubmit = function(e) {
+    e.preventDefault();
+    const cardId = document.getElementById('edit-card-id').value;
+    const card = document.getElementById(cardId);
+    if (card) {
+        card.querySelector('.cliente').textContent = document.getElementById('edit-cliente').value;
+        card.querySelector('.empresa').textContent = document.getElementById('edit-empresa').value;
+        card.querySelector('.problema').textContent = document.getElementById('edit-problema').value;
+        const gallery = card.querySelector('.gallery');
+        gallery.innerHTML = '';
+        [...document.getElementById('edit-preview-container').querySelectorAll('img')].forEach(img => {
+            const newImg = document.createElement('img');
+            newImg.src = img.src;
+            newImg.onclick = () => exibirImagemModal(img.src);
+            gallery.appendChild(newImg);
+        });
+    }
+    salvarEAtualizar();
+    fecharModalEdicao();
 }
 
 // ===== INICIALIZAÇÃO =====
-restaurarBoard();   
+restaurarBoard();
+atualizarGrafico();
