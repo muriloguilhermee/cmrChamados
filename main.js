@@ -59,10 +59,16 @@ function criarCard({ cliente, empresa, problema, imagens }) {
   const actions = document.createElement('div'); actions.className = 'actions';
   const doneBtn = document.createElement('button'); doneBtn.textContent = 'Concluir'; doneBtn.className = 'done-btn';
   doneBtn.onclick = () => {
-    const concl = Array.from(boardEl.querySelectorAll('.column')).find(c => c.querySelector('h2').textContent === 'Concluído');
-    if (concl) concl.appendChild(card);
+  const concl = Array.from(boardEl.querySelectorAll('.column'))
+                      .find(c => c.querySelector('h2')?.textContent.trim() === 'Concluído');
+  if (concl) {
+    concl.appendChild(card);
     salvarBoard();
-  };
+  } else {
+    alert('Coluna "Concluído" não encontrada!');
+  }
+};
+
   const delBtn = document.createElement('button'); delBtn.textContent = 'Excluir'; delBtn.className = 'delete-btn';
   delBtn.onclick = () => { card.remove(); salvarBoard(); };
   const editBtn = document.createElement('button'); editBtn.textContent = 'Editar'; editBtn.className = 'edit-btn';
