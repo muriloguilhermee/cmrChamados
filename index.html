@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evacloudd - Kanban Profissional Visual</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">E</div>
+    <div>
+      <h1>Evacloudd</h1>
+      <div class="subtitle">Gestor de Chamados — Trello Style</div>
+    </div>
+  </div>
+  <div class="top-controls">
+    <input type="text" id="busca" class="search" placeholder="Buscar..." oninput="filtrarChamados()">
+    <button class="btn btn-primary" onclick="document.getElementById('cliente').focus()">+ Novo Chamado</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="left">
+    <form id="form-chamado">
+      <label for="cliente">Nome do Cliente</label>
+      <input id="cliente" type="text" required>
+      <label for="empresa">Nome da Empresa</label>
+      <input id="empresa" type="text" required>
+      <label for="problema">Problema</label>
+      <textarea id="problema" required></textarea>
+
+      <input type="file" id="print" accept="image/*" multiple>
+      <label for="print" class="file-label">Selecionar Prints</label>
+      <div id="preview-container" class="print-preview"></div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-primary" type="submit">Adicionar Chamado</button>
+        <button type="button" class="btn btn-secondary" onclick="limparFormulario()">Limpar</button>
+      </div>
+    </form>
+
+    <div style="margin-top:18px;">
+      <div style="color:var(--muted);font-size:13px;margin-bottom:8px">Gerenciar Etapas</div>
+      <div class="add-column-area">
+        <input id="nova-etapa" class="input-col" placeholder="Nova etapa">
+        <button class="btn btn-primary" onclick="adicionarEtapa()">Adicionar</button>
+      </div>
+    </div>
+
+    <div id="stats">
+      <canvas id="chart"></canvas>
+    </div>
+  </aside>
+
+  <section class="board" id="kanban"></section>
+</div>
+
+<script src="main.js">
+
+</script>
+
+</body>
+</html>
