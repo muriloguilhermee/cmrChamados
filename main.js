@@ -148,11 +148,9 @@ function criarCard({ cliente, empresa, problema, imagens }) {
 
 // ===== COLUNAS FIXAS =====
 function adicionarColuna(nome) {
-  const coluna = document.createElement('div'); coluna.className = 'column';
-  coluna.innerHTML = `<div class="col-actions">
-    <button onclick="renomearEtapa(this.closest('.column'))">✎</button>
-    <button onclick="removerEtapa(this.closest('.column'))">✕</button>
-  </div><h2>${nome}</h2>`;
+  const coluna = document.createElement('div'); 
+  coluna.className = 'column';
+  coluna.innerHTML = `<h2>${nome}</h2>`; // sem botões de editar/excluir
   coluna.ondragover = e => e.preventDefault();
   coluna.ondrop = e => {
     e.preventDefault();
@@ -173,20 +171,40 @@ function adicionarEtapa() {
   document.getElementById('nova-etapa').value = ''; 
   salvarBoard(); 
 }
-function removerEtapa(coluna) { if (confirm('Remover etapa e chamados?')) { coluna.remove(); salvarBoard(); } }
-function renomearEtapa(coluna) { const titulo = coluna.querySelector('h2'); const novo = prompt('Novo nome:', titulo.textContent); if (novo) { titulo.textContent = novo.trim(); salvarBoard(); } }
-function filtrarChamados() { const termo = document.getElementById('busca').value.toLowerCase(); document.querySelectorAll('.card').forEach(c => { c.style.display = (c.querySelector('.cliente').textContent.toLowerCase().includes(termo) || c.querySelector('.empresa').textContent.toLowerCase().includes(termo)) ? 'block' : 'none'; }); }
+
+function filtrarChamados() { 
+  const termo = document.getElementById('busca').value.toLowerCase(); 
+  document.querySelectorAll('.card').forEach(c => { 
+    c.style.display = (c.querySelector('.cliente').textContent.toLowerCase().includes(termo) || 
+                       c.querySelector('.empresa').textContent.toLowerCase().includes(termo)) ? 'block' : 'none'; 
+  }); 
+}
 
 // ===== GRÁFICO =====
 function atualizarChart() {
   const etapas = [], valores = [];
-  boardEl.querySelectorAll('.column').forEach(c => { etapas.push(c.querySelector('h2').textContent); valores.push(c.querySelectorAll('.card').length); });
+  boardEl.querySelectorAll('.column').forEach(c => { 
+    etapas.push(c.querySelector('h2').textContent); 
+    valores.push(c.querySelectorAll('.card').length); 
+  });
   const total = valores.reduce((a, b) => a + b, 0);
   const porcentagens = valores.map(v => total ? (v / total * 100).toFixed(1) : 0);
   if(chart) chart.destroy();
   const colors = ['#7c5cff','#00e0ff','#3de07a','#ff4d4d','#ffaa00','#ff66cc','#66ffcc'];
   const ctx = document.getElementById('chart').getContext('2d');
-  chart = new Chart(ctx,{type:'bar',data:{labels:etapas.map((t,i)=>`${t} (${porcentagens[i]}%)`),datasets:[{label:'Chamados',data:valores,backgroundColor:valores.map((_,i)=>colors[i%colors.length]),borderColor:'#fff',borderWidth:2,borderRadius:8} ] },options:{responsive:true,plugins:{legend:{display:false},tooltip:{enabled:true}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},animation:{duration:800,easing:'easeOutQuart'}}});
+  chart = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:etapas.map((t,i)=>`${t} (${porcentagens[i]}%)`),
+      datasets:[{label:'Chamados',data:valores,backgroundColor:valores.map((_,i)=>colors[i%colors.length]),borderColor:'#fff',borderWidth:2,borderRadius:8}]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{enabled:true}},
+      scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},
+      animation:{duration:800,easing:'easeOutQuart'}
+    }
+  });
 }
 
 // ===== SALVAR / RESTAURAR =====
